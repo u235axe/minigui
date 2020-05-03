@@ -1,5 +1,4 @@
 ﻿//#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-using byte = unsigned char;
 #include "miniwindow.h"
 #include "rendertext.h"
 
@@ -28,19 +27,19 @@ struct App
 	MainWindow wnd;
 	Button     bQuit;
 	StbFont    font;
-	bool doQuit;
 
 	int enterApp()
 	{
-		font.init("C:\\Users\\Admin\\Desktop\\minigui\\git\\DejaVuSansMono.ttf");
+		font.init("DejaVuSansMono.ttf");
 		bQuit.setText(utf8s("Quit"), font, 20);
 
 		wnd.window.eventDriven = true;
-		doQuit = false;
-
 		wnd.mouseHandler([&](Mouse const& m)
 			{
-				if(m.isLeftUp() && is_inside(bQuit.rect, m.pos)){ doQuit = true; }
+				if(m.isLeftUp() && is_inside(bQuit.rect, m.pos))
+				{
+					wnd.quit();
+				}
 			});
 		wnd.keyboardHandler([&](Keyboard const& k)
 			{
@@ -53,12 +52,10 @@ struct App
 			} );
 		wnd.idleHandler([&]
 			{
-				if(doQuit){ wnd.quit(); }
 			} );
 		wnd.exitHandler([&]
 			{
 				wnd.quit();
-				doQuit = true;
 			});
 		wnd.renderHandler( [&](SoftwareRenderer& r)
 			{

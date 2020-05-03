@@ -23,7 +23,6 @@
 #endif
 #include "utfstring.h"
 #include "graphics_base.h"
-//#include "minilinalg.h"
 
 enum class ButtonChange : bool {Up, Down};
 

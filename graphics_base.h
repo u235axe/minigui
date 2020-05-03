@@ -1,7 +1,10 @@
 #pragma once
+#include <cmath>
 #include <vector>
 #include <array>
 #include <algorithm>
+
+using byte = unsigned char;
 
 template<typename T>
 void remove(std::vector<T>& v, T& elem)
@@ -86,9 +89,9 @@ template<typename T> struct rect2
 	void shift_to( pos2<T> d ){ x  = d.x; y  = d.y; }
 };
 
-enum class HAlign  : byte { None, OuterLeft, LeftCenter, InnerLeft, HCenter, InnerRight, RightCenter, OuterRight };
-enum class VAlign  : byte { None, OuterTop, TopCenter, InnerTop, VCenter, InnerBottom, BottomCenter, OuterBottom };
-enum class SizeRef : byte { None, RefWidth, RefHeight, ContentWidth, ContentHeight }; 
+enum class HAlign  : byte { NoAlign, OuterLeft, LeftCenter, InnerLeft, HCenter, InnerRight, RightCenter, OuterRight };
+enum class VAlign  : byte { NoAlign, OuterTop, TopCenter, InnerTop, VCenter, InnerBottom, BottomCenter, OuterBottom };
+enum class SizeRef : byte { NoSize, RefWidth, RefHeight, ContentWidth, ContentHeight }; 
 
 using pos2i  = pos2<int>;
 using size2i = size2<int>;
