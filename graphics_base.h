@@ -76,6 +76,10 @@ template<typename T> auto operator*(pos2<T> p, T c){ return pos2<T>{p.x*c, p.y*c
 template<typename T> auto operator/(pos2<T> p, T c){ return pos2<T>{p.x/c, p.y/c}; }
 
 template<typename T> struct size2{ T w, h; T area() const { return w*h; } };
+
+template<typename T> auto operator+(size2<T> p, size2<T> q){ return size2<T>{p.w+q.w, p.h+q.h}; }
+template<typename T> auto operator-(size2<T> p, size2<T> q){ return size2<T>{p.w-q.w, p.h-q.h}; }
+
 template<typename T> struct rect2
 {
 	T x, y, w, h;

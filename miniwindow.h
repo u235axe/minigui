@@ -1107,6 +1107,20 @@ struct SoftwareRenderer
 		return {x + rct.w, baseline + pt.dh};
 	}
 
+	void prerendered_text_to_rect(PrerenderedText const& pt, rect2i rct, Color8 fg, HAlign ha = HAlign::HCenter, VAlign va = VAlign::VCenter)
+	{
+		auto dx = -pt.text_align_box.x;
+		auto dy = -pt.text_align_box.y;
+		if     (ha == HAlign::HCenter   ){ dx -= pt.text_align_box.w/2; dx += rct.w/2; }
+		else if(ha == HAlign::InnerRight){ dx -= pt.text_align_box.w;   dx += rct.w;   }
+
+		if     (va == VAlign::VCenter    ){ dy -= pt.text_align_box.h/2; dy += rct.h/2; }
+		else if(va == VAlign::InnerBottom){ dy -= pt.text_align_box.h;   dy += rct.h;   }
+
+		auto rct2 = pt.img.rect(); rct2 = pos2<int>{rct.x + dx, rct.y + dy};
+		plot_by_index(rct2, [&](auto x, auto y, Color8 c0){ return blend8(c0, pt.img(x, y), fg); } );
+	}
+
 	template<typename T, typename F>
 	void triangle(T x0, T y0, T x1, T y1, T x2, T y2, F&& f)
 	{
