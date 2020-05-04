@@ -49,12 +49,12 @@ struct Text : Base
 		updateRq = true;
 	}
 
-	virtual size2i getPreferredSize() const { return pt.text_align_box.size() + gap + gap; }
+	virtual size2i getPreferredSize() const { return pt.text_align_box.size() + 2*gap; }
 
 	virtual void updateContent()
 	{
 		if(sz == Sizing::BottomUp){ content = pt.text_align_box.size(); rect = center_shrink(content, -gap.w, -gap.h); }
-		else                      { content = rect.size() - gap - gap; }
+		else                      { content = rect.size() - 2*gap; }
 		updateRq = false; realignRq = true;
 	}
 
@@ -72,27 +72,52 @@ struct Text : Base
 	}
 };
 
+struct ListBounds
+{
+	int W, H, maxW, maxH;
+	ListBounds(){ reset(); }
+	void reset(){ W = H = maxW = maxH = 0; }
+};
+
+template<typename Fidx>
+ListBounds computeBoundsOf(int n, Fidx&& fidx)
+{
+	ListBounds lb;
+	for(int i=0; i<n; ++i)
+	{
+		auto sz = fidx(i);
+		lb.maxW = std::max(lb.maxW, sz.w);
+		lb.maxH = std::max(lb.maxH, sz.h);
+		lb.W += sz.w;
+		lb.H += sz.h;
+	}
+	return lb;
+}
+
 struct List : Base
 {
 	std::vector<Base*> childs;
+	int elemgap;
 	bool isHorizontal;
 
-	List(){ gap = {8,8}; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::TopDown; updateRq = true; realignRq = true; isHorizontal = false; }
+	int size() const { return (int)childs.size(); }
+
+	List(){ gap = {8,8}; elemgap = 4; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::TopDown; updateRq = true; realignRq = true; isHorizontal = false; }
 
 	virtual size2i getPreferredSize() const
 	{
-		int W = 0, H = 0, maxW = 0, maxH = 0;
-		int n = (int)childs.size();
-		for(int i=0; i<n; ++i)
-		{
-			childs[i]->updateContent();
-			auto chsz = childs[i]->getPreferredSize();
-			maxW = std::max(maxW, chsz.w);
-			maxH = std::max(maxH, chsz.h);
-			W += chsz.w;
-			H += chsz.h;
-		}
-		return size2i{isHorizontal ? W : maxW, isHorizontal ? maxH : H} + gap + gap;
+		int n = size();
+		auto b = computeBoundsOf(n, [&](int i){ childs[i]->updateContent(); return childs[i]->getPreferredSize(); });
+		return size2i{isHorizontal ? b.W + (n-1)*elemgap : b.maxW, isHorizontal ? b.maxH : b.H + (n-1)*elemgap} + 2*gap;
+	}
+
+	size2i eqDivSize() const
+	{
+		int n = size();
+		size2i szc = content.size();
+		int g = (n-1)*elemgap;
+		if(isHorizontal){ szc.w = (content.w - g) / n; }else{ szc.h = (content.h - g) / n; }
+		return szc;
 	}
 
 	void updateContent()
@@ -100,38 +125,17 @@ struct List : Base
 		for(auto& c : childs){ c->ha = HContentAlign::Fill; c->va = VContentAlign::Center; c->sz = sz; }
 		if(sz == Sizing::BottomUp)
 		{
-			content = getPreferredSize() - gap - gap;
+			content = getPreferredSize() - 2*gap;
 			rect = center_shrink(content, -gap.w, -gap.h);
 		}
 		else
-		{
-			content = rect.size() - gap - gap;
-			int n = (int)childs.size();
-			if(isHorizontal)
+		{//bound child's size from up by the available list entry space (computed from equal division of content) otherwise keeps the preferred size
+			content = rect.size() - 2*gap;
+			auto eqsz = eqDivSize();
+			for(auto& c : childs)
 			{
-				int x = rect.x + gap.w;
-				int w = content.w / n;
-				for(int i=0; i<n; ++i)
-				{
-					auto pr = childs[i]->getPreferredSize();
-					if(pr.h > content.h){ pr.h = content.h; }
-					if(pr.w > w){ pr.w = w; }
-					childs[i]->rect = pr;
-					childs[i]->updateContent();
-				}
-			}
-			else
-			{
-				int y = rect.y + gap.h;
-				int h = content.h / n;
-				for(int i=0; i<n; ++i)
-				{
-					auto pr = childs[i]->getPreferredSize();
-					if(pr.w > content.w){ pr.w = content.w; }
-					if(pr.h > h){ pr.h = h; }
-					childs[i]->rect = pr;
-					childs[i]->updateContent();
-				}
+				c->rect = assignL(c->getPreferredSize(), eqsz);
+				c->updateContent();
 			}
 		}
 		updateRq = false; realignRq = true;
@@ -141,27 +145,21 @@ struct List : Base
 	{
 		alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, ha, va);
 		alignContentToOuter(content, rect, gap, ha, va);
-		int n = (int)childs.size();
-		if(isHorizontal)
+		auto eqsz = eqDivSize();
+		auto p = content.pos();
+		for(auto& c : childs)
 		{
-			int x = content.x;
-			int w0 = content.w / n;
-			for(int i=0; i<n; ++i)
+			if(isHorizontal)
 			{
-				int w = sz == Sizing::TopDown ? w0 : childs[i]->rect.w;
-				childs[i]->realign({x, content.y}, size2i{w, content.h});
-				x += childs[i]->rect.w;
+				int d = (sz == Sizing::TopDown ? eqsz.w : c->rect.w);
+				c->realign(p, size2i{d, content.h});
+				p.x += d + elemgap;
 			}
-		}
-		else
-		{
-			int y = content.y;
-			int h0 = content.h / n;
-			for(int i=0; i<n; ++i)
+			else
 			{
-				int h = sz == Sizing::TopDown ? h0 : childs[i]->rect.h;
-				childs[i]->realign({content.x, y}, size2i{content.w, h});
-				y += childs[i]->rect.h;
+				int d = (sz == Sizing::TopDown ? eqsz.h : c->rect.h);
+				c->realign(p, size2i{content.w, d});
+				p.y += d + elemgap;
 			}
 		}
 		realignRq = false;
@@ -215,6 +213,7 @@ struct App
 		list.childs.push_back(&list1);
 		list.childs.push_back(&list2);
 		list.isHorizontal = true;
+		list.elemgap = 10;
 		//list.gap = {0,0};
 
 		wnd.window.eventDriven = true;
@@ -235,9 +234,9 @@ struct App
 				bQuit.updateContent();
 				bQuit.realign(pos2i{(int)(w * 0.05f), (int)(h * 0.05)}, {});
 				
-				list.rect = size2i{(int)(w * 0.25f), (int)(h * 0.25)};
+				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
 				list.updateContent();
-				list.realign(pos2i{(int)(w * 0.25f), (int)(h * 0.25)}, {});
+				list.realign(pos2i{(int)(w * 0.5f), (int)(h * 0.5)}, {});
 			} );
 		wnd.idleHandler([&]
 			{

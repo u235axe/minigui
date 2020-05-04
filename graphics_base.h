@@ -43,6 +43,9 @@ auto sum(int n, F&& f)
 
 template<typename T> T ChebyshevT(int n, T const& x){ return cos(n*acos(x)); }
 
+template<typename T> T assignL( T& ref, T const& r ){ if(r < ref){ ref = r; } return ref; }
+template<typename T> T assignG( T& ref, T const& r ){ if(r > ref){ ref = r; } return ref; }
+
 //2D geometry related:
 
 template<typename T>
@@ -79,6 +82,14 @@ template<typename T> struct size2{ T w, h; T area() const { return w*h; } };
 
 template<typename T> auto operator+(size2<T> p, size2<T> q){ return size2<T>{p.w+q.w, p.h+q.h}; }
 template<typename T> auto operator-(size2<T> p, size2<T> q){ return size2<T>{p.w-q.w, p.h-q.h}; }
+template<typename T> auto operator*(size2<T> p, T c){ return size2<T>{p.w*c, p.h*c}; }
+template<typename T> auto operator/(size2<T> p, T c){ return size2<T>{p.w/c, p.h/c}; }
+template<typename T> auto operator*(T c, size2<T> p){ return size2<T>{c*p.w, c*p.h}; }
+
+template<typename T> size2<T> assignL( size2<T>&& ref, size2<T> const& r ){ assignL(ref.w, r.w); assignL(ref.h, r.h); return ref; }
+template<typename T> size2<T> assignG( size2<T>&& ref, size2<T> const& r ){ assignG(ref.w, r.w); assignG(ref.h, r.h); return ref; }
+template<typename T> size2<T> assignL( size2<T>&  ref, size2<T> const& r ){ assignL(ref.w, r.w); assignL(ref.h, r.h); return ref; }
+template<typename T> size2<T> assignG( size2<T>&  ref, size2<T> const& r ){ assignG(ref.w, r.w); assignG(ref.h, r.h); return ref; }
 
 template<typename T> struct rect2
 {
