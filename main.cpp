@@ -139,9 +139,6 @@ struct List : Base
 
 	void realign(pos2i pos, size2i outersz)
 	{
-		/*rect = pos;
-		if(ha == HContentAlign::Fill){ rect.w = outersz.w; }
-		if(va == VContentAlign::Fill){ rect.h = outersz.h; }*/
 		alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, ha, va);
 		alignContentToOuter(content, rect, gap, ha, va);
 		int n = (int)childs.size();
