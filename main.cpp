@@ -3,8 +3,8 @@
 #include "miniwindow.h"
 #include "rendertext.h"
 
-enum class HContentAlign { Left, Center, Right,  Fill };
-enum class VContentAlign { Top,  Center, Bottom, Fill };
+enum class HContentAlign { Fill = 255, Left = 2, Center, Right  };
+enum class VContentAlign { Fill = 255, Top  = 2, Center, Bottom };
 enum class Sizing { TopDown,  BottomUp };
 
 void alignContentToOuter(rect2i& content, rect2i const& outer, size2i gap, HContentAlign hca, VContentAlign vca)
@@ -39,8 +39,10 @@ struct Base
 struct Text : Base
 {
 	PrerenderedText pt;
+	HContentAlign tha;
+	VContentAlign tva;
 
-	Text(){ gap = {8,8}; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
+	Text(){ gap = {8,8}; ha = tha = HContentAlign::Center; va = tva = VContentAlign::Bottom; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
 
 	void setText(utf8string const& str, StbFont const& font, float height)
 	{
@@ -68,7 +70,7 @@ struct Text : Base
 	{
 		sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
 		sr.rect(content, color8(255,0,0));
-		sr.prerendered_text_to_rect(pt, content, color8(255, 224, 0), HAlign::InnerLeft, VAlign::InnerTop);
+		sr.prerendered_text_to_rect(pt, content, color8(255, 224, 0), (HAlign)tha, (VAlign)tva);
 	}
 };
 
@@ -102,7 +104,7 @@ struct List : Base
 
 	int size() const { return (int)childs.size(); }
 
-	List(){ gap = {8,8}; elemgap = 4; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::TopDown; updateRq = true; realignRq = true; isHorizontal = false; }
+	List(){ gap = {8,8}; elemgap = 4; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::BottomUp; updateRq = true; realignRq = true; isHorizontal = false; }
 
 	virtual size2i getPreferredSize() const
 	{
@@ -232,7 +234,7 @@ struct App
 			{
 				wnd.renderer.filledrect(0, 0, w, h, color8(0, 0, 0));
 				bQuit.updateContent();
-				bQuit.realign(pos2i{(int)(w * 0.05f), (int)(h * 0.05)}, {});
+				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
 				
 				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
 				list.updateContent();

@@ -104,9 +104,9 @@ template<typename T> struct rect2
 	void shift_to( pos2<T> d ){ x  = d.x; y  = d.y; }
 };
 
-enum class HAlign  : byte { NoAlign, OuterLeft, LeftCenter, InnerLeft, HCenter, InnerRight, RightCenter, OuterRight };
-enum class VAlign  : byte { NoAlign, OuterTop, TopCenter, InnerTop, VCenter, InnerBottom, BottomCenter, OuterBottom };
-enum class SizeRef : byte { NoSize, RefWidth, RefHeight, ContentWidth, ContentHeight }; 
+enum class HAlign  : byte { NoAlign = 255, OuterLeft = 0, LeftCenter, InnerLeft, HCenter, InnerRight, RightCenter, OuterRight };
+enum class VAlign  : byte { NoAlign = 255, OuterTop  = 0, TopCenter,  InnerTop,  VCenter, InnerBottom, BottomCenter, OuterBottom };
+enum class SizeRef : byte { NoSize  = 255, RefWidth  = 0, RefHeight, ContentWidth, ContentHeight }; 
 
 using pos2i  = pos2<int>;
 using size2i = size2<int>;
