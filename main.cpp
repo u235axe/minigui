@@ -1,4 +1,6 @@
-﻿#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+﻿#ifdef _WIN32
+#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+#endif
 #include "ui2.h"
 using namespace UI2;
 
@@ -112,24 +114,23 @@ struct App
 				
 				wnd.renderer.filledrect(0, 0, w, h, color8(0, 0, 0));
 
-				bQuit.updateContent();
-				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
-
 				uiCounter.updateContent();
 				uiCounter.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.225)}, {});
+				uiCounter.draw(r);
+				counter += 1;
 
-				listd.updateContent();
-				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
+				bQuit.updateContent();
+				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
+				bQuit.draw(r);
 
 				col2.updateContent();
 				col2.realign(pos2i{(int)(w * 0.225f), (int)(h * 0.125)}, {});
-
-				bQuit.draw(r);
-				uiCounter.draw(r);
-				listd.draw(r);
 				col2.draw(r);
-				counter += 1;
 
+				listd.updateContent();
+				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
+				listd.draw(r);
+				
 				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
 				list.updateContent();
 				list.realign(pos2i{(int)(w * 0.5f), (int)(h * 0.5)}, {});
