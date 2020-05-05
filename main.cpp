@@ -1,221 +1,76 @@
 ﻿//#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
-#include <numeric>
-#include "miniwindow.h"
-#include "rendertext.h"
+#include "ui2.h"
 
-enum class HContentAlign { Fill = 255, Left = 2, Center, Right  };
-enum class VContentAlign { Fill = 255, Top  = 2, Center, Bottom };
-enum class Sizing { TopDown,  BottomUp };
-
-void alignContentToOuter(rect2i& content, rect2i const& outer, size2i gap, HContentAlign hca, VContentAlign vca)
-{
-	if     (hca == HContentAlign::Left  ){ content.x = left   (outer) + gap.w; }
-	else if(hca == HContentAlign::Center){ content.x = hcenter(outer) - content.w/2;         }
-	else if(hca == HContentAlign::Right ){ content.x = right  (outer) - gap.w - content.w; }
-	else if(hca == HContentAlign::Fill  ){ content.x = left   (outer) + gap.w; content.w = outer.w - 2*gap.w; }
-
-	if     (vca == VContentAlign::Top   ){ content.y = top    (outer) + gap.h; }
-	else if(vca == VContentAlign::Center){ content.y = vcenter(outer) - content.h/2;         }
-	else if(vca == VContentAlign::Bottom){ content.y = bottom (outer) - gap.h - content.h; }
-	else if(vca == VContentAlign::Fill  ){ content.y = top(outer) + gap.h; content.h = outer.h - 2*gap.h; }
-}
-
-struct Base
-{
-	rect2i rect;
-	rect2i content;
-	size2i gap;
-	HContentAlign ha;
-	VContentAlign va;
-	Sizing        sz;
-	bool updateRq, realignRq;
-
-	virtual size2i getPreferredSize() const{ return {0,0}; }
-	virtual void updateContent(){}
-	virtual void realign(pos2i pos, size2i outersz){}
-	virtual void draw(SoftwareRenderer& sr){}
-};
-
-struct Text : Base
-{
-	PrerenderedText pt;
-	HContentAlign tha;
-	VContentAlign tva;
-
-	Text(){ gap = {8,8}; ha = tha = HContentAlign::Center; va = tva = VContentAlign::Bottom; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
-
-	void setText(utf8string const& str, StbFont const& font, float height)
-	{
-		pt = render_small_string_monospace(str, font, height);
-		//pt.reduce_margins();
-		updateRq = true;
-	}
-
-	virtual size2i getPreferredSize() const { return pt.text_align_box.size() + 2*gap; }
-
-	virtual void updateContent()
-	{
-		if(sz == Sizing::BottomUp){ content = pt.text_align_box.size(); rect = center_shrink(content, -gap.w, -gap.h); }
-		else                      { content = rect.size() - 2*gap; }
-		updateRq = false; realignRq = true;
-	}
-
-	virtual void realign(pos2i pos, size2i outersz)
-	{
-		alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, ha, va);
-		alignContentToOuter(content, rect, gap, ha, va); realignRq = false;
-	}
-
-	virtual void draw(SoftwareRenderer& sr)
-	{
-		sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
-		sr.rect(content, color8(255,0,0));
-		sr.prerendered_text_to_rect(pt, content, color8(255, 224, 0), (HAlign)tha, (VAlign)tva);
-	}
-};
-
-struct ListBounds
-{
-	int W, H, maxW, maxH;
-	ListBounds(){ reset(); }
-	void reset(){ W = H = maxW = maxH = 0; }
-};
-
-template<typename Fidx>
-ListBounds computeBoundsOf(int n, Fidx&& fidx)
-{
-	ListBounds lb;
-	for(int i=0; i<n; ++i)
-	{
-		auto sz = fidx(i);
-		lb.maxW = std::max(lb.maxW, sz.w);
-		lb.maxH = std::max(lb.maxH, sz.h);
-		lb.W += sz.w;
-		lb.H += sz.h;
-	}
-	return lb;
-}
-
-struct List : Base
-{
-	std::vector<Base*> childs;
-	int elemgap;
-	bool isHorizontal;
-
-	int size() const { return (int)childs.size(); }
-
-	List(){ gap = {8,8}; elemgap = 4; ha = HContentAlign::Center; va = VContentAlign::Center; sz = Sizing::BottomUp; updateRq = true; realignRq = true; isHorizontal = false; }
-
-	virtual size2i getPreferredSize() const
-	{
-		int n = size();
-		auto b = computeBoundsOf(n, [&](int i){ childs[i]->updateContent(); return childs[i]->getPreferredSize(); });
-		return size2i{isHorizontal ? b.W + (n-1)*elemgap : b.maxW, isHorizontal ? b.maxH : b.H + (n-1)*elemgap} + 2*gap;
-	}
-
-	size2i eqDivSize() const
-	{
-		int n = size();
-		size2i szc = content.size();
-		int g = (n-1)*elemgap;
-		if(isHorizontal){ szc.w = (content.w - g) / n; }else{ szc.h = (content.h - g) / n; }
-		return szc;
-	}
-
-	void updateContent()
-	{
-		for(auto& c : childs){ c->ha = HContentAlign::Fill; c->va = VContentAlign::Center; c->sz = sz; }
-		if(sz == Sizing::BottomUp)
-		{
-			content = getPreferredSize() - 2*gap;
-			rect = center_shrink(content, -gap.w, -gap.h);
-		}
-		else
-		{//bound child's size from up by the available list entry space (computed from equal division of content) otherwise keeps the preferred size
-			content = rect.size() - 2*gap;
-			auto eqsz = eqDivSize();
-			for(auto& c : childs)
-			{
-				c->rect = assignL(c->getPreferredSize(), eqsz);
-				c->updateContent();
-			}
-		}
-		updateRq = false; realignRq = true;
-	}
-
-	void realign(pos2i pos, size2i outersz)
-	{
-		alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, ha, va);
-		alignContentToOuter(content, rect, gap, ha, va);
-		auto eqsz = eqDivSize();
-		auto p = content.pos();
-		for(auto& c : childs)
-		{
-			if(isHorizontal)
-			{
-				int d = (sz == Sizing::TopDown ? eqsz.w : c->rect.w);
-				c->realign(p, size2i{d, content.h});
-				p.x += d + elemgap;
-			}
-			else
-			{
-				int d = (sz == Sizing::TopDown ? eqsz.h : c->rect.h);
-				c->realign(p, size2i{content.w, d});
-				p.y += d + elemgap;
-			}
-		}
-		realignRq = false;
-	}
-
-	void draw(SoftwareRenderer& sr)
-	{
-		sr.framedrect(rect, color8(192,192,192), color8(64,64,64));
-		//sr.rect(rect, color8(192,192,192));
-		for(auto& c : childs)
-		{
-			c->draw(sr);
-		}
-		//sr.rect(content, color8(255,0,255));
-	}
-};
+using namespace UI2;
 
 struct App
 {
 	MainWindow wnd;
-	Text       bQuit;
+	Leaf       bQuit;
+	Leaf       uiCounter;
+	ListData   listd;
+
+	int         counter;
+	utf32string text1;
+	std::vector<int> ints;
+
+	utf32string texts[7];
+
 	List       list1;
 	List       list2;
 	List       list;
-	StbFont    font;
+	Style	   style;
 
 	int enterApp()
 	{
-		font.init("DejaVuSansMono.ttf");
-		bQuit.setText(utf8s("Quit"), font, 20);
-		bQuit.sz = Sizing::BottomUp;
+		style.font.init("DejaVuSansMono.ttf");
+		style.height = 20;
+		style.bg = color8(0, 0, 64);
+		style.fg = color8(0, 192, 255);
 
-		list1.childs.push_back(new Text{});
-		list1.childs.push_back(new Text{});
-		list1.childs.push_back(new Text{});
+		text1   = utf8s("Quit").to_codepoints();
+		counter = 0;
 
-		((Text*)list1.childs[0])->setText(utf8s(u8"[Á]"),   font, 20);
-		((Text*)list1.childs[1])->setText(utf8s("vvvvvvv"), font, 20);
-		((Text*)list1.childs[2])->setText(utf8s("."),       font, 20);
+		bQuit.setProxy( view_value(text1, style) );
+		uiCounter.setProxy( view_value(counter, style) );
+		listd.setProxy( view_multi_value(ints, style) );
 
-		list2.childs.push_back(new Text{});
-		list2.childs.push_back(new Text{});
-		list2.childs.push_back(new Text{});
-		list2.childs.push_back(new Text{});
+		bQuit.sz     = Sizing::BottomUp;
+		uiCounter.sz = Sizing::BottomUp;
+		listd.sz     = Sizing::BottomUp;
+		listd.isHorizontal = false;
 
-		((Text*)list2.childs[0])->setText(utf8s(u8"[É]"),   font, 20);
-		((Text*)list2.childs[1])->setText(utf8s("wwwgwww"), font, 20);
-		((Text*)list2.childs[2])->setText(utf8s("..."),     font, 20);
-		((Text*)list2.childs[3])->setText(utf8s("123456789"),     font, 20);
+		texts[0] = utf8s(u8"[Á]").to_codepoints();
+		texts[1] = utf8s(u8"vvvvvvv").to_codepoints();
+		texts[2] = utf8s(u8".").to_codepoints();
+		texts[3] = utf8s(u8"[É]").to_codepoints();
+		texts[4] = utf8s(u8"wwwgwww").to_codepoints();
+		texts[5] = utf8s(u8"...").to_codepoints();
+		texts[6] = utf8s(u8"123456789").to_codepoints();
+
+		list1.childs.push_back(new Leaf{});
+		list1.childs.push_back(new Leaf{});
+		list1.childs.push_back(new Leaf{});
+
+		((Leaf*)list1.childs[0])->setProxy( view_value(texts[0], style) );
+		((Leaf*)list1.childs[1])->setProxy( view_value(texts[1], style) );
+		((Leaf*)list1.childs[2])->setProxy( view_value(texts[2], style) );
+
+		list2.childs.push_back(new Leaf{});
+		list2.childs.push_back(new Leaf{});
+		list2.childs.push_back(new Leaf{});
+		list2.childs.push_back(new Leaf{});
+
+		((Leaf*)list2.childs[0])->setProxy( view_value(texts[3], style) );
+		((Leaf*)list2.childs[1])->setProxy( view_value(texts[4], style) );
+		((Leaf*)list2.childs[2])->setProxy( view_value(texts[5], style) );
+		((Leaf*)list2.childs[3])->setProxy( view_value(texts[6], style) );
 
 		list.childs.push_back(&list1);
 		list.childs.push_back(&list2);
 		list.isHorizontal = true;
 		list.elemgap = 10;
+		list.sz = Sizing::TopDown;
 		//list.gap = {0,0};
 
 		wnd.window.eventDriven = true;
@@ -225,6 +80,11 @@ struct App
 				{
 					wnd.quit();
 				}
+				if(m.isRightUp())
+				{
+					ints.push_back(rand());
+				}
+				wnd.window.redraw();
 			});
 		wnd.keyboardHandler([&](Keyboard const& k)
 			{
@@ -233,12 +93,6 @@ struct App
 		wnd.resizeHandler( [&](int w, int h, bool b)
 			{
 				wnd.renderer.filledrect(0, 0, w, h, color8(0, 0, 0));
-				bQuit.updateContent();
-				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
-				
-				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
-				list.updateContent();
-				list.realign(pos2i{(int)(w * 0.5f), (int)(h * 0.5)}, {});
 			} );
 		wnd.idleHandler([&]
 			{
@@ -249,8 +103,28 @@ struct App
 			});
 		wnd.renderHandler( [&](SoftwareRenderer& r)
 			{
-				wnd.renderer.filledrect(0, 0, wnd.width(), wnd.height(), color8(0, 0, 0));
+				int w = wnd.width();
+				int h = wnd.height();
+				
+				wnd.renderer.filledrect(0, 0, w, h, color8(0, 0, 0));
+
+				bQuit.updateContent();
+				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
+
+				uiCounter.updateContent();
+				uiCounter.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.225)}, {});
+
+				listd.updateContent();
+				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
+
 				bQuit.draw(r);
+				uiCounter.draw(r);
+				listd.draw(r);
+				counter += 1;
+
+				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
+				list.updateContent();
+				list.realign(pos2i{(int)(w * 0.5f), (int)(h * 0.5)}, {});
 				list.draw(r);
 			});
 

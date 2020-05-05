@@ -345,7 +345,7 @@ struct PrerenderedText
 	int baseline;          //measured from top
 	int dh;                //height to next baseline
 
-	PrerenderedText():baseline{0}, dh{0}{}
+	PrerenderedText():text_align_box{0,0,0,0}, baseline{0}, dh{0}{}
 	void resize(int w, int h){ img.resize({w, h}, 0); }
 	size2<int> size() const { return img.size(); }
 	rect2<int> rect() const { return img.rect(); }
