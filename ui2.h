@@ -220,11 +220,39 @@ namespace UI2
 
 		void setProxy(std::shared_ptr<ValueProxyBase> p){ proxy = p; }
 	
-		virtual size2i getPreferredSize() const { return (proxy ? proxy->getSize() : size2i{0,0}) + 2*gap; }
+		size2i getPreferredSize() const override { return (proxy ? proxy->getSize() : size2i{0,0}) + 2*gap; }
 
-		virtual void updateContent()
+		void updateContent() override
 		{
 			if(proxy){ proxy->update(); }
+			if(sz == Sizing::BottomUp){ content = getPreferredSize() - 2*gap; rect = center_shrink(content, -gap.w, -gap.h); }
+			else                      { content = rect.size() - 2*gap; }
+			updateRq = false; realignRq = true;
+		}
+
+		void realign(pos2i pos, size2i outersz) override
+		{
+			alignContentAndRect(pos, outersz);
+			realignRq = false;
+		}
+
+		void draw(SoftwareRenderer& sr) override
+		{
+			sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
+			sr.rect(content, color8(255,0,0));
+			if(proxy){ proxy->draw(content, sr); }
+		}
+	};
+
+	struct Col2 : Base
+	{
+		std::array<Image2<unsigned char>, 2> imgs;
+		Col2(){ gap = {8,8}; cha = icha = HContentAlign::Center; cva = icva = VContentAlign::Bottom; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
+
+		size2i getPreferredSize() const override { return size2i{std::max(imgs[0].sz.w, imgs[1].sz.w), imgs[0].sz.h + imgs[1].sz.h} + 2*gap; }
+
+		void updateContent() override
+		{
 			if(sz == Sizing::BottomUp){ content = getPreferredSize() - 2*gap; rect = center_shrink(content, -gap.w, -gap.h); }
 			else                      { content = rect.size() - 2*gap; }
 			updateRq = false; realignRq = true;
@@ -239,8 +267,15 @@ namespace UI2
 		virtual void draw(SoftwareRenderer& sr)
 		{
 			sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
-			sr.rect(content, color8(255,0,0));
-			if(proxy){ proxy->draw(content, sr); }
+			rect2i r0; r0 = getPreferredSize() - 2*gap;
+			alignContentToOuter(r0, content, {0,0}, icha, icva);
+			rect2i r;
+			r = imgs[0].size();
+			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Top);
+			sr.blend_grayscale_image(imgs[0], r.x, r.y, color8(255,255,0));
+			r = imgs[1].size();
+			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Bottom);
+			sr.blend_grayscale_image(imgs[1], r.x, r.y, color8(0,255,255));
 		}
 	};
 

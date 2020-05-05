@@ -1,6 +1,5 @@
-﻿//#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
+﻿#define _SILENCE_CXX17_CODECVT_HEADER_DEPRECATION_WARNING
 #include "ui2.h"
-
 using namespace UI2;
 
 struct App
@@ -9,6 +8,8 @@ struct App
 	Leaf       bQuit;
 	Leaf       uiCounter;
 	ListData   listd;
+
+	Col2       col2;
 
 	int         counter;
 	utf32string text1;
@@ -27,6 +28,10 @@ struct App
 		style.height = 20;
 		style.bg = color8(0, 0, 64);
 		style.fg = color8(0, 192, 255);
+
+		col2.imgs[0] = render_small_string_monospace(utf8s(u8"W"), style.font, 48).reduce_margins().img;
+		col2.imgs[1] = render_small_string_monospace(utf8s(u8"2"), style.font, 16).reduce_margins().img;
+		col2.gap = {1,1};
 
 		text1   = utf8s("Quit").to_codepoints();
 		counter = 0;
@@ -116,9 +121,13 @@ struct App
 				listd.updateContent();
 				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
 
+				col2.updateContent();
+				col2.realign(pos2i{(int)(w * 0.225f), (int)(h * 0.125)}, {});
+
 				bQuit.draw(r);
 				uiCounter.draw(r);
 				listd.draw(r);
+				col2.draw(r);
 				counter += 1;
 
 				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};

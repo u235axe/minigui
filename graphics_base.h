@@ -91,6 +91,9 @@ template<typename T> size2<T> assignG( size2<T>&& ref, size2<T> const& r ){ assi
 template<typename T> size2<T> assignL( size2<T>&  ref, size2<T> const& r ){ assignL(ref.w, r.w); assignL(ref.h, r.h); return ref; }
 template<typename T> size2<T> assignG( size2<T>&  ref, size2<T> const& r ){ assignG(ref.w, r.w); assignG(ref.h, r.h); return ref; }
 
+template<typename T> size2<T> max(size2<T> a, size2<T> b){ return {std::max(a.w, b.w), std::max(a.h, b.h)}; }
+template<typename T> size2<T> min(size2<T> a, size2<T> b){ return {std::min(a.w, b.w), std::min(a.h, b.h)}; }
+
 template<typename T> struct rect2
 {
 	T x, y, w, h;
@@ -350,17 +353,18 @@ struct PrerenderedText
 	size2<int> size() const { return img.size(); }
 	rect2<int> rect() const { return img.rect(); }
 
-	void reduce_margins()
+	PrerenderedText& reduce_margins()
 	{
 		Image2<unsigned char> tmp = img;
 		auto Ds = ::reduce_margins(tmp);
-		if(tmp.rect().area() == 0){ text_align_box.w = img.w(); return; }
+		if(tmp.rect().area() == 0){ text_align_box.w = img.w(); return *this; }
 
 		baseline -= Ds[2];
 		text_align_box.x -= Ds[0];
 		text_align_box.y += Ds[2];
 		std::swap(img.data, tmp.data);
 		std::swap(img.sz,   tmp.sz);
+		return *this;
 	}
 };
 
