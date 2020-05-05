@@ -254,7 +254,7 @@ namespace MainWindowDetails
 			break;
 		}
 		//CM handled outside.
-		case Expose:        /*printf("Expose ");*/ relay.onRender(); break;
+		case Expose:        /*printf("Expose\n");*/ relay.onRender(); /*XFlush(display);*/ break;
 		}
 	}
 #endif
@@ -581,7 +581,7 @@ struct PlatformWindowData
 	{
 		auto t0 = std::chrono::high_resolution_clock::now();
 		auto t1 = t0, trsz = t0;
-		printf("Entering event loop\n");
+		//printf("Entering event loop\n");
 		long nredraw = 0, nredrawproc = 0;
 
 		auto sendExposeEvent = [&]()
@@ -689,7 +689,7 @@ struct PlatformWindowData
 		printf("x= %i, y= %i, w= %i, h= %i\n", pos.x, pos.y, size.w, size.h);
 	}*/
 
-	void redraw() { /*printf("Redraw req\n");*/ needRedraw = true; XSync(display, False); }
+	void redraw() { /*printf("Redraw req\n");*/ needRedraw = true; /*XClearArea(display, handle, 0, 0, size.w, size.h, true);*/ /*XSync(display, False);*/ }
 	void show() const { printf("show\n"); XMapRaised(display, handle); }
 	void hide() const { XUnmapWindow(display, handle); }
 	void minimize() { last_pos = pos; last_size = size; XIconifyWindow(display, handle, 0); }
@@ -1459,21 +1459,19 @@ struct MainWindow
 
 	void onResize(int w, int h, bool)
 	{
-		//printf("resize\n");
 		bool m = (w == width()) && (h == height());
 		if(!m)
 		{
 			free_buffers();
 			renderer.resize(w, h);
-			allocate_buffers();
 			window.size.w = w; window.size.h = h; 
+			allocate_buffers();
 		}
 		onAppResize(w, h, m);
 		if(!m)
 		{
-			//printf("stepping and redrawing\n");
 			//onAppStep();
-			//window.redraw();
+			window.redraw();
 		}
 	}
 

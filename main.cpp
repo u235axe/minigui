@@ -92,7 +92,6 @@ struct App
 			});
 		wnd.resizeHandler( [&](int w, int h, bool b)
 			{
-				wnd.renderer.filledrect(0, 0, w, h, color8(0, 0, 0));
 			} );
 		wnd.idleHandler([&]
 			{

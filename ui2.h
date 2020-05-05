@@ -1,4 +1,5 @@
 #include <numeric>
+#include <memory>
 #include "graphics_base.h"
 #include "miniwindow.h"
 #include "rendertext.h"
