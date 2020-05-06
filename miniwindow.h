@@ -1085,6 +1085,7 @@ struct SoftwareRenderer
 	void hline(int x0, int x1, int y,  Color8 c){ hline(x0, x1, y, [](auto, auto){ return true; }, [=](auto){ return c; }); } 
 	void vline(int x,  int y0, int y1, Color8 c){ vline(x, y0, y1, [](auto, auto){ return true; }, [=](auto){ return c; }); } 
 
+	void blend_grayscale_image(Image2<unsigned char> const& img, pos2i p, Color8 fg){ blend_grayscale_image(img, p.x, p.y, fg); }
 	void blend_grayscale_image(Image2<unsigned char> const& img, int x, int y, Color8 fg)
 	{
 		rect2i rct; rct = img.rect(); rct = pos2i{x, y};

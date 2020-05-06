@@ -610,9 +610,9 @@ namespace UI2
 		void draw(SoftwareRenderer& sr) override
 		{
 			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
-			sr.blend_grayscale_image(imgs[0], vls[0]->content.x, vls[0]->content.y, color8(255,0,0));
-			sr.blend_grayscale_image(imgs[1], hls[0].content.x, hls[0].content.y, color8(0,255,0));
-			sr.blend_grayscale_image(imgs[2], hls[1].content.x, hls[1].content.y, color8(0,0,255));
+			sr.blend_grayscale_image(imgs[0], vls[0]->content.pos(), color8(255,0,0));
+			sr.blend_grayscale_image(imgs[1], hls[0].content.pos(), color8(0,255,0));
+			sr.blend_grayscale_image(imgs[2], hls[1].content.pos(), color8(0,0,255));
 		}
 	};
 
@@ -650,9 +650,12 @@ namespace UI2
 		void draw(SoftwareRenderer& sr) override
 		{
 			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
-			sr.blend_grayscale_image(imgs[0], vlist.childs[0]->layout->content.x, vlist.childs[0]->layout->content.y, color8(255,0,0));
-			sr.blend_grayscale_image(imgs[1], hlist.childs[0]->layout->content.x, hlist.childs[0]->layout->content.y, color8(0,255,0));
-			sr.blend_grayscale_image(imgs[2], hlist.childs[1]->layout->content.x, hlist.childs[1]->layout->content.y, color8(0,0,255));
+			sr.blend_grayscale_image(imgs[0], vlist.childs[0]->layout->content.pos(), color8(255,0,0));
+			sr.rect(vlist.childs[0]->layout->content, color8(255, 0, 255));
+			sr.blend_grayscale_image(imgs[1], hlist.childs[0]->layout->content.pos(), color8(0,255,0));
+			sr.rect(hlist.childs[0]->layout->content, color8(255, 0, 255));
+			sr.blend_grayscale_image(imgs[2], hlist.childs[1]->layout->content.pos(), color8(0,0,255));
+			sr.rect(hlist.childs[1]->layout->content, color8(255, 0, 255));
 		}
 	};
 }
