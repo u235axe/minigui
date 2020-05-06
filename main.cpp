@@ -11,7 +11,8 @@ struct App
 	Leaf       uiCounter;
 	ListData   listd;
 
-	Col2       col2;
+	TwoRows    tworows;
+	TitleAndTwoCols tatc;
 
 	int         counter;
 	utf32string text1;
@@ -31,9 +32,15 @@ struct App
 		style.bg = color8(0, 0, 64);
 		style.fg = color8(0, 192, 255);
 
-		col2.imgs[0] = render_small_string_monospace(utf8s(u8"W"), style.font, 48).reduce_margins().img;
-		col2.imgs[1] = render_small_string_monospace(utf8s(u8"2"), style.font, 16).reduce_margins().img;
-		col2.layout->gap = {1,1};
+		tworows.imgs[0] = render_small_string_monospace(utf8s(u8"W"), style.font, 48).reduce_margins().img;
+		tworows.imgs[1] = render_small_string_monospace(utf8s(u8"2"), style.font, 16).reduce_margins().img;
+		tworows.layout->gap = {1,1};
+		tworows.layout->sz = Sizing::TopDown;
+
+		tatc.imgs[0] = render_small_string_monospace(utf8s("This is the title"), style.font, 20).img;
+		tatc.imgs[1] = render_small_string_monospace(utf8s("Subcontent 1"), style.font, 16).img;
+		tatc.imgs[2] = render_small_string_monospace(utf8s("Subcontent 2"), style.font, 16).img;
+		tatc.layout->gap = {2,2};
 
 		text1   = utf8s("Quit").to_codepoints();
 		counter = 0;
@@ -47,8 +54,8 @@ struct App
 
 		listd.layout->sz     = Sizing::TopDown;
 		listd.layout->cva    = VContentAlign::Top;
-		listd.reference.layout->cha = HContentAlign::Left;
-		listd.reference.layout->cva = VContentAlign::Top;
+		listd.reference->cha = HContentAlign::Left;
+		listd.reference->cva = VContentAlign::Top;
 		listd.getListLayout().elemgap      = 2;
 		listd.getListLayout().isHorizontal = false;
 
@@ -82,7 +89,7 @@ struct App
 		list.childs.push_back(&list2);
 		list.getListLayout().isHorizontal = true;
 		list.getListLayout().elemgap = 10;
-		list.layout->sz = Sizing::TopDown;
+		list.layout->sz = Sizing::BottomUp;
 		//list.gap = {0,0};
 
 		wnd.window.eventDriven = true;
@@ -128,9 +135,14 @@ struct App
 				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
 				bQuit.draw(r);
 
-				col2.updateContent();
-				col2.realign(pos2i{(int)(w * 0.225f), (int)(h * 0.125)}, {});
-				col2.draw(r);
+				tworows.layout->rect = size2i{(int)(w * 0.1f), (int)(h * 0.1f)};
+				tworows.updateContent();
+				tworows.realign(pos2i{(int)(w * 0.625f), (int)(h * 0.125)}, {});
+				tworows.draw(r);
+
+				tatc.updateContent();
+				tatc.realign(pos2i{(int)(w * 0.625f), (int)(h * 0.825)}, {});
+				tatc.draw(r);
 
 				listd.layout->rect = size2i{(int)(w * 0.2f), (int)(h * 0.5f)};
 				listd.updateContent();
