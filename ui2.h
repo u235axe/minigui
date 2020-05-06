@@ -1,5 +1,6 @@
 #include <numeric>
 #include <memory>
+#include <optional>
 #include "graphics_base.h"
 #include "miniwindow.h"
 #include "rendertext.h"
@@ -114,6 +115,13 @@ namespace UI2
 		~ValueProxy(){}
 	};
 
+	template<typename T>
+	auto view_value(T& t, Style& s)
+	{
+		ValueProxy<T> vp; vp.setTarget(t); vp.setStyle(s);
+		return std::make_shared<ValueProxy<T>>(std::move(vp));
+	}
+
 	struct MultiValueProxyBase
 	{
 		virtual void   update(){}
@@ -188,102 +196,11 @@ namespace UI2
 		void   drawElem(int i, rect2i rct, SoftwareRenderer& sr)override{ r.drawElem(i, rct, sr); }
 	};
 	
-	struct Base
-	{
-		rect2i rect;
-		rect2i content;
-		size2i gap;
-		HContentAlign cha;//content rect align w.r.t the outer rect
-		VContentAlign cva;//content rect align w.r.t the outer rect
-		HContentAlign icha;//internal content alignment w.r.t content rect
-		VContentAlign icva;//internal content alignment w.r.t content rect
-		Sizing        sz;
-		bool updateRq, realignRq;
-
-		void alignContentAndRect(pos2i pos, size2i outersz)
-		{
-			alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, cha, cva);
-			alignContentToOuter(content, rect, gap, cha, cva);
-		}
-
-		virtual size2i getPreferredSize() const{ return {0,0}; }
-		virtual void updateContent(){}
-		virtual void realign(pos2i pos, size2i outersz){}
-		virtual void draw(SoftwareRenderer& sr){}
-	};
-
-	struct Leaf : Base
-	{
-		std::shared_ptr<ValueProxyBase> proxy;
-
-		Leaf(){ gap = {8,8}; cha = icha = HContentAlign::Center; cva = icva = VContentAlign::Bottom; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
-
-		void setProxy(std::shared_ptr<ValueProxyBase> p){ proxy = p; }
-	
-		size2i getPreferredSize() const override { return (proxy ? proxy->getSize() : size2i{0,0}) + 2*gap; }
-
-		void updateContent() override
-		{
-			if(proxy){ proxy->update(); }
-			if(sz == Sizing::BottomUp){ content = getPreferredSize() - 2*gap; rect = center_shrink(content, -gap.w, -gap.h); }
-			else                      { content = rect.size() - 2*gap; }
-			updateRq = false; realignRq = true;
-		}
-
-		void realign(pos2i pos, size2i outersz) override
-		{
-			alignContentAndRect(pos, outersz);
-			realignRq = false;
-		}
-
-		void draw(SoftwareRenderer& sr) override
-		{
-			sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
-			sr.rect(content, color8(255,0,0));
-			if(proxy){ proxy->draw(content, sr); }
-		}
-	};
-
-	struct Col2 : Base
-	{
-		std::array<Image2<unsigned char>, 2> imgs;
-		Col2(){ gap = {8,8}; cha = icha = HContentAlign::Center; cva = icva = VContentAlign::Bottom; sz = Sizing::BottomUp; updateRq = true; realignRq = true; }
-
-		size2i getPreferredSize() const override { return size2i{std::max(imgs[0].sz.w, imgs[1].sz.w), imgs[0].sz.h + imgs[1].sz.h} + 2*gap; }
-
-		void updateContent() override
-		{
-			if(sz == Sizing::BottomUp){ content = getPreferredSize() - 2*gap; rect = center_shrink(content, -gap.w, -gap.h); }
-			else                      { content = rect.size() - 2*gap; }
-			updateRq = false; realignRq = true;
-		}
-
-		virtual void realign(pos2i pos, size2i outersz)
-		{
-			alignContentAndRect(pos, outersz);
-			realignRq = false;
-		}
-
-		virtual void draw(SoftwareRenderer& sr)
-		{
-			sr.framedrect(rect, color8(192,192,192), color8(128,128,128));
-			rect2i r0; r0 = getPreferredSize() - 2*gap;
-			alignContentToOuter(r0, content, {0,0}, icha, icva);
-			rect2i r;
-			r = imgs[0].size();
-			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Top);
-			sr.blend_grayscale_image(imgs[0], r.x, r.y, color8(255,255,0));
-			r = imgs[1].size();
-			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Bottom);
-			sr.blend_grayscale_image(imgs[1], r.x, r.y, color8(0,255,255));
-		}
-	};
-
 	template<typename T>
-	auto view_value(T& t, Style& s)
+	auto view_multi_value(T& t, Style& s)
 	{
-		ValueProxy<T> vp; vp.setTarget(t); vp.setStyle(s);
-		return std::make_shared<ValueProxy<T>>(std::move(vp));
+		MultiValueProxy<T> vp; vp.setTarget(t); vp.setStyle(s);
+		return std::make_shared<MultiValueProxy<T>>(vp);
 	}
 
 	struct ListBounds
@@ -308,16 +225,145 @@ namespace UI2
 		return lb;
 	}
 
-	struct ListBase : Base
+	struct Layout
+	{
+		rect2i rect;
+		rect2i content;
+		size2i gap;
+		HContentAlign cha;//content rect align w.r.t the outer rect
+		VContentAlign cva;//content rect align w.r.t the outer rect
+		HContentAlign icha;//internal content alignment w.r.t content rect
+		VContentAlign icva;//internal content alignment w.r.t content rect
+		Sizing        sz;
+
+		Layout()
+		{
+			rect.zero(); content.zero(); gap = {1,1};
+			cha = icha = HContentAlign::Center; cva = icva = VContentAlign::Center; sz = Sizing::BottomUp;
+		}
+
+		void alignContentAndRect(pos2i pos, size2i outersz)
+		{
+			alignContentToOuter(rect, rect2i{pos.x, pos.y, outersz.w, outersz.h}, {0,0}, cha, cva);
+			alignContentToOuter(content, rect, gap, cha, cva);
+		}
+
+		void updateContent(size2i contentSize)
+		{
+			if(sz == Sizing::BottomUp){ content = contentSize; rect = center_shrink(content, -gap.w, -gap.h); }
+			else                      { content = rect.size() - 2*gap; }
+		}
+
+		using ChL  = std::function<Layout*(int)>;
+		using ChSz = std::function<size2i (int)>;
+		using ChUp = std::function<void   (int)>;
+		using ChAl = std::function<void   (int, pos2i, size2i)>;
+
+		virtual size2i getContentSize(int n,                            ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) const{ return {0,0}; };
+		virtual void   update        (int n,                            ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz){}
+		virtual void   realign       (int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign){}
+	};
+
+	struct SingeElementLayout : Layout
+	{
+		size2i getContentSize(int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) const override
+		{
+			if(selfprefsz){ return selfprefsz.value() - 2*gap; } return {0,0};
+		};
+
+		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz)override
+		{
+			if( selfprefsz ){ updateContent(selfprefsz.value() - 2*gap); }
+		}
+
+		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign)override
+		{
+			alignContentAndRect(pos, outersz);
+		}
+	};
+
+	struct Col2Layout : Layout
+	{
+		size2i getContentSize(int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) const override
+		{
+			size2i sz0 = chsize(0); size2i sz1 = chsize(1);
+			return size2i{std::max(sz0.w, sz1.w), sz0.h + sz1.h};
+		};
+
+		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz)override
+		{
+			updateContent(getContentSize(n, chl, chsize, chupdate, std::nullopt));
+		}
+
+		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign)override
+		{
+			alignContentAndRect(pos, outersz);
+
+			size2i sz0 = chsize(0);
+			size2i sz1 = chsize(1);
+			rect2i r0; r0 = size2i{std::max(sz0.w, sz1.w), sz0.h + sz1.h};
+			alignContentToOuter(r0, content, {0,0}, icha, icva);
+			rect2i r;
+			r = sz0;
+			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Top);
+			chl(0)->rect = r;
+			r = sz1;
+			alignContentToOuter(r, r0, {0,0}, icha, VContentAlign::Bottom);
+			chl(1)->rect = r;
+		}
+	};
+
+	struct ListLayout: Layout
 	{
 		int elemgap;
 		bool isHorizontal;
 
-		ListBase():elemgap{0}, isHorizontal{true}{}
-
-		size2i eqDivSize() const
+		//could be global?
+		void boundChilds(int n, size2i contentSize, ChL chl, ChSz chsz, ChUp chup)
 		{
-			int n = nElems();
+			if(sz == Sizing::BottomUp)
+			{
+				content = contentSize;//lb.getPreferredSize() - 2*gap;
+				rect    = center_shrink(content, -gap.w, -gap.h);
+			}
+			else
+			{
+				content = rect.size() - 2*gap;
+				auto eqsz  = eqDivSize(n);
+				for(int i=0; i<n; ++i)
+				{
+					auto cl = chl(i);
+					cl->rect = assignL(chsz(i), eqsz);
+					chup(i);
+				}
+			}
+		}
+
+		//could be global?
+		void alignChildAsList(int n, ChL chl, ChAl chalign)
+		{
+			auto eqsz = eqDivSize(n);
+			auto p = content.pos();
+			for(int i=0; i<n; ++i)
+			{
+				Layout* cl = chl(i);
+				if(isHorizontal)
+				{
+					int d = (sz == Sizing::TopDown ? eqsz.w : cl->rect.w);
+					chalign(i, p, size2i{d, content.h});
+					p.x += d + elemgap;
+				}
+				else
+				{
+					int d = (sz == Sizing::TopDown ? eqsz.h : cl->rect.h);
+					chalign(i, p, size2i{content.w, d});
+					p.y += d + elemgap;
+				}
+			}
+		}
+
+		size2i eqDivSize(int n) const
+		{
 			if(n == 0){ return {0,0}; }
 			size2i szc = content.size();
 			int g = (n-1)*elemgap;
@@ -325,63 +371,115 @@ namespace UI2
 			return szc;
 		}
 
-		virtual int    nElems() const { return 0; }
-		virtual Base*  getElem(int i){ return nullptr; }
-		virtual void   updateElem(int i){}
-		virtual size2i getElemSize(int i) const { return {0,0}; }
-		virtual size2i getPreferredSize() const override
+		ListLayout(int elemgap_, bool isHorizontal_){ elemgap = elemgap_; isHorizontal = isHorizontal_; }
+
+		size2i getContentSize(int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) const override
 		{
-			int n = nElems();
-			auto b = computeBoundsOf(n, [&](int i){ return getElemSize(i); });
-			return size2i{isHorizontal ? b.W + (n-1)*elemgap : b.maxW, isHorizontal ? b.maxH : b.H + (n-1)*elemgap} + 2*gap;
+			auto b = computeBoundsOf(n, chsize);
+			return size2i{isHorizontal ? b.W + (n-1)*elemgap : b.maxW, isHorizontal ? b.maxH : b.H + (n-1)*elemgap};
 		};
+
+		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) override
+		{
+			auto ctsz = getContentSize(n, chl, chsize, chupdate, selfprefsz);
+			boundChilds(n, ctsz, chl, chsize, chupdate);
+		}
+
+		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign) override
+		{
+			alignContentAndRect(pos, outersz);
+			alignChildAsList(n, chl, chalign/*[](Base* c, pos2i p, size2i s){ c->realign(p, s); }*/);
+		}
+	};
+	
+	struct Base
+	{
+		Layout* layout;
+
+		Base(){ layout = new SingeElementLayout; }
+		virtual size2i getPreferredSize() const{ return {0,0}; }
+		virtual void updateContent(){}
+		virtual void realign(pos2i pos, size2i outersz){}
+		virtual void draw(SoftwareRenderer& sr){}
 	};
 
-	template<typename F>
-	void alignChildAsList(ListBase& lb, F&& fa)
+	struct Leaf : Base
 	{
-		auto eqsz = lb.eqDivSize();
-		auto p = lb.content.pos();
-		auto n = lb.nElems();
-		for(int i=0; i<n; ++i)
-		{
-			Base* c = lb.getElem(i);
-			if(lb.isHorizontal)
-			{
-				int d = (lb.sz == Sizing::TopDown ? eqsz.w : c->rect.w);
-				fa(c, p, size2i{d, lb.content.h});
-				p.x += d + lb.elemgap;
-			}
-			else
-			{
-				int d = (lb.sz == Sizing::TopDown ? eqsz.h : c->rect.h);
-				fa(c, p, size2i{lb.content.w, d});
-				p.y += d + lb.elemgap;
-			}
-		}
-	}
+		std::shared_ptr<ValueProxyBase> proxy;
 
-	template<typename F>
-	void boundChilds(ListBase& lb, F&& fupdate)
+		Leaf(){ layout = new SingeElementLayout; layout->gap = {8,8}; }
+
+		void setProxy(std::shared_ptr<ValueProxyBase> p){ proxy = p; }
+	
+		size2i getPreferredSize() const override { return (proxy ? proxy->getSize() : size2i{0,0}) + 2*layout->gap; }
+
+		void updateContent() override
+		{
+			if(proxy){ proxy->update(); }
+			layout->update(0, [](int){ return nullptr; }, [](int){ return size2i{}; }, [](int){}, getPreferredSize());
+			//layout.updateContent(getPreferredSize() - 2*layout.gap);
+		}
+
+		void realign(pos2i pos, size2i outersz) override
+		{
+			layout->realign(0, pos, outersz, [](int){ return nullptr; }, [](int){ return size2i{}; }, [](int, pos2i, size2i){});
+			//layout.alignContentAndRect(pos, outersz);
+		}
+
+		void draw(SoftwareRenderer& sr) override
+		{
+			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
+			sr.rect(layout->content, color8(255,0,0));
+			if(proxy){ proxy->draw(layout->content, sr); }
+		}
+	};
+
+	struct Col2 : Base
 	{
-		auto n = lb.nElems();
-		if(lb.sz == Sizing::BottomUp)
+		std::array<Layout, 2> ls;
+		std::array<Image2<unsigned char>, 2> imgs;
+		Col2(){ layout = new Col2Layout; }
+
+		size2i getPreferredSize() const override { return size2i{std::max(imgs[0].sz.w, imgs[1].sz.w), imgs[0].sz.h + imgs[1].sz.h} + 2*layout->gap; }
+
+		void updateContent() override
 		{
-			lb.content = lb.getPreferredSize() - 2*lb.gap;
-			lb.rect    = center_shrink(lb.content, -lb.gap.w, -lb.gap.h);
+			layout->update(2, [&](int i){ return &(ls[i]); }, [&](int i){ return imgs[i].size(); }, [](int i){}, std::nullopt );
+			//layout.updateContent(getPreferredSize()-2*layout.gap);
 		}
-		else
+
+		virtual void realign(pos2i pos, size2i outersz)
 		{
-			lb.content = lb.rect.size() - 2*lb.gap;
-			auto eqsz  = lb.eqDivSize();
-			for(int i=0; i<n; ++i)
-			{
-				auto c = lb.getElem(i);
-				c->rect = assignL(lb.getElemSize(i), eqsz);
-				fupdate(c);
-			}
+			layout->realign(2, pos, outersz, [&](int i){ return &(ls[i]); }, [&](int i){ return imgs[i].size(); }, [](int, pos2i, size2i){} );
+			//layout.alignContentAndRect(pos, outersz);
 		}
-	}
+
+		virtual void draw(SoftwareRenderer& sr)
+		{
+			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
+			sr.blend_grayscale_image(imgs[0], ls[0].rect.x, ls[0].rect.y, color8(255,255,0));
+			sr.blend_grayscale_image(imgs[1], ls[1].rect.x, ls[1].rect.y, color8(0,255,255));
+		}
+	};
+
+	struct ListBase : Base
+	{
+		ListLayout& getListLayout(){ return *((ListLayout*)layout); }
+		ListBase(){ layout = new ListLayout(0, true); }
+
+		virtual int         nElems() const { return 0; }
+		virtual Base*       getElem(int i){ return nullptr; }
+		virtual Base const* getElem(int i)const{ return nullptr; }
+		virtual void        updateElem(int i){}
+		virtual size2i      getElemSize(int i) const { return {0,0}; }
+		virtual size2i      getPreferredSize() const override
+		{
+			int n = nElems();
+			return layout->getContentSize(n, [this](int i){ return this->getElem(i)->layout; }, [&](int i){ return getElemSize(i); }, [](int i){}, std::nullopt) + 2*layout->gap;
+			//auto b = computeBoundsOf(n, [&](int i){ return getElemSize(i); });
+			//return size2i{isHorizontal ? b.W + (n-1)*elemgap : b.maxW, isHorizontal ? b.maxH : b.H + (n-1)*elemgap} + 2*layout.gap;
+		};
+	};
 
 	struct List : ListBase
 	{
@@ -389,33 +487,35 @@ namespace UI2
 
 		List()
 		{
-			gap = {8,8}; elemgap = 4; cha = HContentAlign::Center; cva = VContentAlign::Center; sz = Sizing::BottomUp; updateRq = true; realignRq = true; isHorizontal = false;
-			icva = VContentAlign::Center; icha = HContentAlign::Fill;
+			((ListLayout*)layout)->elemgap = 4; ((ListLayout*)layout)->isHorizontal = false;
+			layout->icva = VContentAlign::Center; layout->icha = HContentAlign::Fill;
 		}
 
-		int    nElems() const override { return (int)childs.size(); }
-		Base*  getElem(int i) override { return childs[i]; }
-		void   updateElem (int i) override { childs[i]->updateContent(); };
-		size2i getElemSize(int i) const override { return childs[i]->getPreferredSize(); }
-		void   add( Base& x ){ childs.push_back(&x); }
+		int         nElems() const override { return (int)childs.size(); }
+		Base*       getElem(int i) override { return childs[i]; }
+		Base const* getElem(int i) const override { return childs[i]; }
+		void        updateElem (int i) override { childs[i]->updateContent(); };
+		size2i      getElemSize(int i) const override { return childs[i]->getPreferredSize(); }
+		void        add( Base& x ){ childs.push_back(&x); }
 
 		void updateContent()
 		{
-			for(int i=0; i<nElems(); ++i){ auto c = getElem(i); c->cha = icha; c->cva = icva; c->sz = sz; c->updateContent(); }
-			boundChilds(*this, [](Base* c){ c->updateContent(); });
-			updateRq = false; realignRq = true;
+			for(int i=0; i<nElems(); ++i){ auto c = getElem(i); c->layout->cha = layout->icha; c->layout->cva = layout->icva; c->layout->sz = layout->sz; c->updateContent(); }
+			layout->update(nElems(), [this](int i){ return childs[i]->layout; }, [this](int i){ return this->getElemSize(i); }, [this](int i){ this->childs[i]->updateContent(); }, std::nullopt);
+			//boundChilds(*this, [](Base* c){ c->updateContent(); });
+			//LayouterUpdate(layout, nElems(), [this](int i){ return this->getElem(i)->layout; }, [&](int i){ return getElemSize(i); }, [](int i){});
 		}
 
 		void realign(pos2i pos, size2i outersz)
 		{
-			alignContentAndRect(pos, outersz);
-			alignChildAsList(*this, [](Base* c, pos2i p, size2i s){ c->realign(p, s); });
-			realignRq = false;
+			layout->realign(nElems(), pos, outersz, [this](int i){ return childs[i]->layout; }, [this](int i){ return this->getElemSize(i); }, [this](int i, pos2i p, size2i s){ this->childs[i]->realign(p, s); });
+			//layout.alignContentAndRect(pos, outersz);
+			//alignChildAsList(*this, [](Base* c, pos2i p, size2i s){ c->realign(p, s); });
 		}
 
 		void draw(SoftwareRenderer& sr)
 		{
-			sr.framedrect(rect, color8(192,192,192), color8(64,64,64));
+			sr.framedrect(layout->rect, color8(192,192,192), color8(64,64,64));
 			for(auto& c : childs){ c->draw(sr); }
 			//sr.rect(content, color8(255,0,255));
 		}
@@ -430,13 +530,12 @@ namespace UI2
 		int    nElems() const override { return proxy ? proxy->nElems() : 0; }
 		Base*  getElem(int i) override { return &(chs[i]); }
 		void   updateElem(int i) override {}
-		size2i getElemSize(int i) const override { return (proxy ? proxy->getElemSize(i) : size2i{0,0}) + 2*reference.gap; }
+		size2i getElemSize(int i) const override { return (proxy ? proxy->getElemSize(i) : size2i{0,0}) + 2*reference.layout->gap; }
 
 		ListData()
 		{
-			gap = {8,8}; elemgap = 2; icha = cha = HContentAlign::Center; cva = VContentAlign::Top; sz = Sizing::BottomUp; updateRq = true; realignRq = true; isHorizontal = false;
-			reference.gap = {1,1}; reference.cha = HContentAlign::Fill; icva = reference.cva = VContentAlign::Center; reference.sz = Sizing::BottomUp;
-			reference.updateRq = true; reference.realignRq = true;
+			((ListLayout*)layout)->elemgap = 2; ((ListLayout*)layout)->isHorizontal = false;
+			reference.layout->gap = {1,1}; reference.layout->cha = HContentAlign::Fill; layout->icva = reference.layout->cva = VContentAlign::Center; reference.layout->sz = Sizing::BottomUp;
 		}
 
 		void setProxy(std::shared_ptr<MultiValueProxyBase> p){ proxy = p; }
@@ -453,38 +552,33 @@ namespace UI2
 				{
 					auto& c = chs[i];
 					c = reference;
-					c.sz = sz;
-					c.content = proxy->getElemSize(i);
-					if(c.sz == Sizing::BottomUp){ c.rect = center_shrink(c.content, -c.gap.w, -c.gap.h); }
+					c.layout = new SingeElementLayout;
+					c.layout->sz = layout->sz;
+					c.layout->content = proxy->getElemSize(i);
+					//is this needed?
+					if(c.layout->sz == Sizing::BottomUp){ c.layout->rect = center_shrink(c.layout->content, -c.layout->gap.w, -c.layout->gap.h); }
 				}
-				boundChilds(*this, [](Base* c){ c->content = c->rect.size() - 2*c->gap; });
+				layout->update(nElems(), [this](int i){ return this->chs[i].layout; }, [this](int i){ return this->getElemSize(i); }, [this](int i){ this->chs[i].layout->content = this->chs[i].layout->rect.size() - 2*this->chs[i].layout->gap; }, std::nullopt);
+				//boundChilds(*this, [](Base* c){ c->layout.content = c->layout.rect.size() - 2*c->layout.gap; });
 			}
-			updateRq = false; realignRq = true;
 		}
 
 		void realign(pos2i pos, size2i outersz)override
 		{
-			alignContentAndRect(pos, outersz);
-			alignChildAsList(*this, [](Base* c, pos2i p, size2i s){ c->alignContentAndRect(p, s); });
-			realignRq = false;
+			layout->realign(nElems(), pos, outersz, [this](int i){ return this->chs[i].layout; }, [this](int i){ return this->getElemSize(i); }, [this](int i, pos2i p, size2i sz){ this->chs[i].layout->alignContentAndRect(p, sz); });
+			//layout.alignContentAndRect(pos, outersz);
+			//alignChildAsList(*this, [](Base* c, pos2i p, size2i s){ c->layout.alignContentAndRect(p, s); });
 		}
 
 		void draw(SoftwareRenderer& sr)override
 		{
-			sr.framedrect(rect, color8(192,192,192), color8(64,64,64));
+			sr.framedrect(layout->rect, color8(192,192,192), color8(64,64,64));
 			if(proxy)
 			{
 				int n = nElems();
-				for(int i=0; i<n; ++i){ proxy->drawElem(i, chs[i].content, sr); }
+				for(int i=0; i<n; ++i){ proxy->drawElem(i, chs[i].layout->content, sr); }
 			}
 			//sr.rect(content, color8(255,0,255));
 		}
 	};
-
-	template<typename T>
-	auto view_multi_value(T& t, Style& s)
-	{
-		MultiValueProxy<T> vp; vp.setTarget(t); vp.setStyle(s);
-		return std::make_shared<MultiValueProxy<T>>(vp);
-	}
 }

@@ -33,7 +33,7 @@ struct App
 
 		col2.imgs[0] = render_small_string_monospace(utf8s(u8"W"), style.font, 48).reduce_margins().img;
 		col2.imgs[1] = render_small_string_monospace(utf8s(u8"2"), style.font, 16).reduce_margins().img;
-		col2.gap = {1,1};
+		col2.layout->gap = {1,1};
 
 		text1   = utf8s("Quit").to_codepoints();
 		counter = 0;
@@ -42,10 +42,11 @@ struct App
 		uiCounter.setProxy( view_value(counter, style) );
 		listd.setProxy( view_multi_value(ints, style) );
 
-		bQuit.sz     = Sizing::BottomUp;
-		uiCounter.sz = Sizing::BottomUp;
-		listd.sz     = Sizing::BottomUp;
-		listd.isHorizontal = false;
+		bQuit.layout->sz     = Sizing::BottomUp;
+		uiCounter.layout->sz = Sizing::BottomUp;
+		listd.layout->sz     = Sizing::BottomUp;
+		listd.layout->cva    = VContentAlign::Top;
+		listd.getListLayout().isHorizontal = false;
 
 		texts[0] = utf8s(u8"[Á]").to_codepoints();
 		texts[1] = utf8s(u8"vvvvvvv").to_codepoints();
@@ -75,15 +76,15 @@ struct App
 
 		list.childs.push_back(&list1);
 		list.childs.push_back(&list2);
-		list.isHorizontal = true;
-		list.elemgap = 10;
-		list.sz = Sizing::TopDown;
+		list.getListLayout().isHorizontal = true;
+		list.getListLayout().elemgap = 10;
+		list.layout->sz = Sizing::TopDown;
 		//list.gap = {0,0};
 
 		wnd.window.eventDriven = true;
 		wnd.mouseHandler([&](Mouse const& m)
 			{
-				if(m.isLeftUp() && is_inside(bQuit.rect, m.pos))
+				if(m.isLeftUp() && is_inside(bQuit.layout->rect, m.pos))
 				{
 					wnd.quit();
 				}
@@ -131,7 +132,7 @@ struct App
 				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
 				listd.draw(r);
 				
-				list.rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
+				list.layout->rect = size2i{(int)(w * 0.5f), (int)(h * 0.5f)};
 				list.updateContent();
 				list.realign(pos2i{(int)(w * 0.5f), (int)(h * 0.5)}, {});
 				list.draw(r);
