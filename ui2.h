@@ -403,6 +403,35 @@ namespace UI2
 		}
 	};
 
+	struct Img : Base
+	{
+		Image2<unsigned char>* image;
+
+		Img(Image2<unsigned char>* p):image{p}{ layout = new SingleElementLayout; layout->gap = {1,1}; }
+		Img(                 ){ layout = new SingleElementLayout; layout->gap = {1,1}; }
+
+		size2i getPreferredSize() const override { return image->size() + 2*layout->gap; }
+
+		void updateContent() override
+		{
+			layout->update(0, [](int){ return nullptr; }, [&](int){ return getPreferredSize(); }, [](int){});
+		}
+
+		void realign(pos2i pos, size2i outersz) override
+		{
+			layout->realign(0, pos, outersz, [](int){ return nullptr; }, [](int){ return size2i{}; }, [](int, pos2i, size2i){});
+		}
+
+		void draw(SoftwareRenderer& sr) override
+		{
+			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
+			sr.blend_grayscale_image(*image, layout->content.x, layout->content.y, color8(0,255,0));
+			//sr.copy_image(*image, layout->content.x, layout->content.y);
+			//sr.rect(layout->content, color8(255,0,0));
+			//if(proxy){ proxy->draw(layout->content, sr); }
+		}
+	};
+
 	struct TwoRows : Base
 	{
 		std::array<SingleElementLayout, 2> ls;
@@ -433,48 +462,6 @@ namespace UI2
 		}
 	};
 
-	struct TitleAndTwoCols : Base
-	{
-		std::array<SingleElementLayout, 2>     hls;
-		std::array<std::shared_ptr<Layout>, 2> vls;
-		std::array<Image2<unsigned char>, 3>   imgs;
-
-		TitleAndTwoCols(){ layout = new ListLayout(2, false); vls[0] = std::make_shared<SingleElementLayout>(); vls[1] = std::make_shared<ListLayout>(2, true); }
-
-		//size2i getPreferredSize() const override { return ((ListLayout*)layout)->getContentSize(2, [&](int i){ return imgs[i].size() + 2*ls[i].gap; }); }
-
-		void updateContent() override
-		{
-			vls[1]->update(2, [&](int i){ return &(hls[i]); },
-				              [&](int i){ return imgs[1+i].size() + 2*hls[i].gap; },
-				              [&](int i){ hls[i].updateContent(imgs[1+i].size()); });
-
-			layout->update(2, [&](int i){ return &*vls[i]; },
-				              [&](int i){ return i == 0 ? imgs[i].size() + 2*vls[0]->gap : vls[1]->rect.size(); },
-				              [&](int i){ vls[i]->updateContent(i == 0 ? imgs[0].size() : vls[1]->rect.size()); } );
-		}
-
-		void realign(pos2i pos, size2i outersz) override
-		{
-			layout->realign(2, pos, outersz, [&](int i){ return &(*vls[i]); },
-				                             [&](int i){ return i == 0 ? imgs[i].size() + 2*vls[0]->gap : vls[1]->rect.size(); },
-				                             [&](int i, pos2i p, size2i s)
-				{
-					vls[i]->realign(2, p, s, [&](int i){ return &(hls[i]); },
-						                     [&](int i){ return imgs[1+i].size() + 2*hls[i].gap; },
-						                     [&](int i, pos2i p, size2i s){ hls[i].alignContentAndRect(p, s); });
-				} );
-		}
-
-		void draw(SoftwareRenderer& sr) override
-		{
-			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
-			sr.blend_grayscale_image(imgs[0], vls[0]->content.x, vls[0]->content.y, color8(255,0,0));
-			sr.blend_grayscale_image(imgs[1], hls[0].content.x, hls[0].content.y, color8(0,255,0));
-			sr.blend_grayscale_image(imgs[2], hls[1].content.x, hls[1].content.y, color8(0,0,255));
-		}
-	};
-
 	struct ListBase : Base
 	{
 		ListLayout& getListLayout(){ return *((ListLayout*)layout); }
@@ -497,6 +484,7 @@ namespace UI2
 
 		int         nElems() const override { return (int)childs.size(); }
 		size2i      getElemSize(int i) const override { return childs[i]->getPreferredSize(); }
+		void        add( Base* x ){ childs.push_back( x); }
 		void        add( Base& x ){ childs.push_back(&x); }
 
 		size2i getPreferredSize() const override { return layout->getContentSize(nElems(), [&](int i){ return getElemSize(i); }) + 2*layout->gap; }
@@ -582,6 +570,89 @@ namespace UI2
 				for(int i=0; i<n; ++i){ proxy->drawElem(i, chs[i]->content, sr); }
 			}
 			//sr.rect(content, color8(255,0,255));
+		}
+	};
+
+	//old implementation:
+	struct TitleAndTwoCols0 : Base
+	{
+		std::array<SingleElementLayout, 2>     hls;
+		std::array<std::shared_ptr<Layout>, 2> vls;
+		std::array<Image2<unsigned char>, 3>   imgs;
+
+		TitleAndTwoCols0(){ layout = new ListLayout(2, false); vls[0] = std::make_shared<SingleElementLayout>(); vls[1] = std::make_shared<ListLayout>(2, true); }
+
+		//size2i getPreferredSize() const override { return ((ListLayout*)layout)->getContentSize(2, [&](int i){ return imgs[i].size() + 2*ls[i].gap; }); }
+
+		void updateContent() override
+		{
+			vls[1]->update(2, [&](int i){ return &(hls[i]); },
+				[&](int i){ return imgs[1+i].size() + 2*hls[i].gap; },
+				[&](int i){ hls[i].updateContent(imgs[1+i].size()); });
+
+			layout->update(2, [&](int i){ return &*vls[i]; },
+				[&](int i){ return i == 0 ? imgs[i].size() + 2*vls[0]->gap : vls[1]->rect.size(); },
+				[&](int i){ vls[i]->updateContent(i == 0 ? imgs[0].size() : vls[1]->rect.size()); } );
+		}
+
+		void realign(pos2i pos, size2i outersz) override
+		{
+			layout->realign(2, pos, outersz, [&](int i){ return &(*vls[i]); },
+				[&](int i){ return i == 0 ? imgs[i].size() + 2*vls[0]->gap : vls[1]->rect.size(); },
+				[&](int i, pos2i p, size2i s)
+				{
+					vls[i]->realign(2, p, s, [&](int i){ return &(hls[i]); },
+						[&](int i){ return imgs[1+i].size() + 2*hls[i].gap; },
+						[&](int i, pos2i p, size2i s){ hls[i].alignContentAndRect(p, s); });
+				} );
+		}
+
+		void draw(SoftwareRenderer& sr) override
+		{
+			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
+			sr.blend_grayscale_image(imgs[0], vls[0]->content.x, vls[0]->content.y, color8(255,0,0));
+			sr.blend_grayscale_image(imgs[1], hls[0].content.x, hls[0].content.y, color8(0,255,0));
+			sr.blend_grayscale_image(imgs[2], hls[1].content.x, hls[1].content.y, color8(0,0,255));
+		}
+	};
+
+	struct TitleAndTwoCols : Base
+	{
+		List hlist;
+		List vlist;
+		std::array<Image2<unsigned char>, 3>   imgs;
+
+		TitleAndTwoCols()
+		{
+			layout       = vlist.layout;
+			hlist.layout = new ListLayout(2, true);
+			hlist.add(new Img(&imgs[1]));
+			hlist.add(new Img(&imgs[2]));
+			vlist.layout = new ListLayout(2, false);
+			vlist.add(new Img(&imgs[0]));
+			vlist.add(&hlist);
+		}
+
+		size2i getPreferredSize() const override { return vlist.getPreferredSize() + 2*layout->gap; }
+
+		void updateContent() override
+		{
+			vlist.updateContent();
+			*layout = *vlist.layout;
+		}
+
+		void realign(pos2i pos, size2i outersz) override
+		{
+			vlist.realign(pos, outersz);
+			*layout = *vlist.layout;
+		}
+
+		void draw(SoftwareRenderer& sr) override
+		{
+			sr.framedrect(layout->rect, color8(192,192,192), color8(128,128,128));
+			sr.blend_grayscale_image(imgs[0], vlist.childs[0]->layout->content.x, vlist.childs[0]->layout->content.y, color8(255,0,0));
+			sr.blend_grayscale_image(imgs[1], hlist.childs[0]->layout->content.x, hlist.childs[0]->layout->content.y, color8(0,255,0));
+			sr.blend_grayscale_image(imgs[2], hlist.childs[1]->layout->content.x, hlist.childs[1]->layout->content.y, color8(0,0,255));
 		}
 	};
 }
