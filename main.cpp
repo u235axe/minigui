@@ -44,8 +44,12 @@ struct App
 
 		bQuit.layout->sz     = Sizing::BottomUp;
 		uiCounter.layout->sz = Sizing::BottomUp;
-		listd.layout->sz     = Sizing::BottomUp;
+
+		listd.layout->sz     = Sizing::TopDown;
 		listd.layout->cva    = VContentAlign::Top;
+		listd.reference.layout->cha = HContentAlign::Left;
+		listd.reference.layout->cva = VContentAlign::Top;
+		listd.getListLayout().elemgap      = 2;
 		listd.getListLayout().isHorizontal = false;
 
 		texts[0] = utf8s(u8"[Á]").to_codepoints();
@@ -128,6 +132,7 @@ struct App
 				col2.realign(pos2i{(int)(w * 0.225f), (int)(h * 0.125)}, {});
 				col2.draw(r);
 
+				listd.layout->rect = size2i{(int)(w * 0.2f), (int)(h * 0.5f)};
 				listd.updateContent();
 				listd.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.325)}, {});
 				listd.draw(r);

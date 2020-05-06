@@ -266,17 +266,19 @@ namespace UI2
 
 	struct SingeElementLayout : Layout
 	{
+		SingeElementLayout(){}
+		SingeElementLayout(SingeElementLayout const& cpy){ *this = cpy; }
 		size2i getContentSize(int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) const override
 		{
 			if(selfprefsz){ return selfprefsz.value() - 2*gap; } return {0,0};
 		};
 
-		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz)override
+		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) override
 		{
 			if( selfprefsz ){ updateContent(selfprefsz.value() - 2*gap); }
 		}
 
-		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign)override
+		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign) override
 		{
 			alignContentAndRect(pos, outersz);
 		}
@@ -290,12 +292,12 @@ namespace UI2
 			return size2i{std::max(sz0.w, sz1.w), sz0.h + sz1.h};
 		};
 
-		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz)override
+		void update (int n, ChL chl, ChSz chsize, ChUp chupdate, std::optional<size2i> selfprefsz) override
 		{
 			updateContent(getContentSize(n, chl, chsize, chupdate, std::nullopt));
 		}
 
-		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign)override
+		void realign(int n, pos2i pos, size2i outersz, ChL chl, ChSz chsize, ChAl chalign) override
 		{
 			alignContentAndRect(pos, outersz);
 
@@ -551,12 +553,12 @@ namespace UI2
 				for(int i=0; i<n; ++i)
 				{
 					auto& c = chs[i];
-					c = reference;
-					c.layout = new SingeElementLayout;
+					c.layout = new SingeElementLayout(*(SingeElementLayout*)reference.layout);
 					c.layout->sz = layout->sz;
-					c.layout->content = proxy->getElemSize(i);
 					//is this needed?
-					if(c.layout->sz == Sizing::BottomUp){ c.layout->rect = center_shrink(c.layout->content, -c.layout->gap.w, -c.layout->gap.h); }
+					c.layout->updateContent(proxy->getElemSize(i));
+					//c.layout->content = proxy->getElemSize(i);
+					//if(c.layout->sz == Sizing::BottomUp){ /*c.layout->rect = center_shrink(c.layout->content, -c.layout->gap.w, -c.layout->gap.h);*/ }
 				}
 				layout->update(nElems(), [this](int i){ return this->chs[i].layout; }, [this](int i){ return this->getElemSize(i); }, [this](int i){ this->chs[i].layout->content = this->chs[i].layout->rect.size() - 2*this->chs[i].layout->gap; }, std::nullopt);
 				//boundChilds(*this, [](Base* c){ c->layout.content = c->layout.rect.size() - 2*c->layout.gap; });
