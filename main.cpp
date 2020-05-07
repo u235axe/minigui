@@ -7,8 +7,9 @@ using namespace UI2;
 struct App
 {
 	MainWindow wnd;
-	Leaf       bQuit;
-	Leaf       uiCounter;
+	StaticText staticText;
+	ProxyValue bQuit;
+	ProxyValue uiCounter;
 	ListData   listd;
 
 	TwoRows    tworows;
@@ -20,8 +21,8 @@ struct App
 
 	utf32string texts[7];
 
-	List       list1;
-	List       list2;
+	std::shared_ptr<List> list1;
+	std::shared_ptr<List> list2;
 	List       list;
 	Style	   style;
 
@@ -41,6 +42,10 @@ struct App
 		tatc.imgs[1] = render_small_string_monospace(utf8s("Subcontent 1"), style.font, 16).img;
 		tatc.imgs[2] = render_small_string_monospace(utf8s("Subcontent 2"), style.font, 16).img;
 		tatc.layout->gap = {2,2};
+
+		staticText.font = &style.font;
+		staticText.height = 26;
+		staticText.text = utf8string(utf8s("My static text")).to_codepoints();
 
 		text1   = utf8s("Quit").to_codepoints();
 		counter = 0;
@@ -67,30 +72,27 @@ struct App
 		texts[5] = utf8s(u8"...").to_codepoints();
 		texts[6] = utf8s(u8"123456789").to_codepoints();
 
-		list1.childs.push_back(new Leaf{});
-		list1.childs.push_back(new Leaf{});
-		list1.childs.push_back(new Leaf{});
+		list1 = std::make_shared<List>(2, false);
+		//list1->layout->sz = Sizing::Top;
+		list1->layout->gap = {4,4};
+		list1->add( std::make_shared<ProxyValue>( view_value(texts[0], style) ) );
+		list1->add( std::make_shared<ProxyValue>( view_value(texts[1], style) ) );
+		list1->add( std::make_shared<ProxyValue>( view_value(texts[2], style) ) );
 
-		((Leaf*)list1.childs[0])->setProxy( view_value(texts[0], style) );
-		((Leaf*)list1.childs[1])->setProxy( view_value(texts[1], style) );
-		((Leaf*)list1.childs[2])->setProxy( view_value(texts[2], style) );
+		list2 = std::make_shared<List>(2, false);
+		list2->layout->gap = {4,4};
+		//list2->layout->sz = Sizing::BottomUp;
+		list2->add( std::make_shared<ProxyValue>( view_value(texts[3], style) ) );
+		list2->add( std::make_shared<ProxyValue>( view_value(texts[4], style) ) );
+		list2->add( std::make_shared<ProxyValue>( view_value(texts[5], style) ) );
+		list2->add( std::make_shared<ProxyValue>( view_value(texts[6], style) ) );
 
-		list2.childs.push_back(new Leaf{});
-		list2.childs.push_back(new Leaf{});
-		list2.childs.push_back(new Leaf{});
-		list2.childs.push_back(new Leaf{});
-
-		((Leaf*)list2.childs[0])->setProxy( view_value(texts[3], style) );
-		((Leaf*)list2.childs[1])->setProxy( view_value(texts[4], style) );
-		((Leaf*)list2.childs[2])->setProxy( view_value(texts[5], style) );
-		((Leaf*)list2.childs[3])->setProxy( view_value(texts[6], style) );
-
-		list.childs.push_back(&list1);
-		list.childs.push_back(&list2);
+		list.add(list1);
+		list.add(list2);
 		list.getListLayout().isHorizontal = true;
 		list.getListLayout().elemgap = 10;
-		list.layout->sz = Sizing::BottomUp;
-		//list.gap = {0,0};
+		list.layout->gap = {4,4};
+		list.layout->sz = Sizing::TopDown;
 
 		wnd.window.eventDriven = true;
 		wnd.mouseHandler([&](Mouse const& m)
@@ -132,8 +134,12 @@ struct App
 				counter += 1;
 
 				bQuit.updateContent();
-				bQuit.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.125)}, {});
+				bQuit.realign(pos2i{(int)(w * 0.055f), (int)(h * 0.055)}, {});
 				bQuit.draw(r);
+
+				staticText.updateContent();
+				staticText.realign(pos2i{(int)(w * 0.125f), (int)(h * 0.155)}, {});
+				staticText.draw(r);
 
 				tworows.layout->rect = size2i{(int)(w * 0.1f), (int)(h * 0.1f)};
 				tworows.updateContent();
