@@ -23,6 +23,8 @@ Egy másik bejárásban az alignment kiértékelése történik meg
 * Kérdés: Mi van, ha ellentmondanak a kényszerek?
 * Valaki, valahol a kényszerek figyelembevételével végzi el a méretezést és az alignmentet
 
+* Ki hívja a constraint solver-t? Az adott widget, vagy a bejáró rendszer, vagy a parent (utóbbi két esetben készen megkapja a megoldást, és kész, előbbi esetben dönthet úgy, hogy alternatív megoldással él)?
+
 * Több minden is oda mutat, hogy azok között a widgetek között, akik kölcsön akarnak hatni akár eventek, akár kényszerekkel, kell, hogy legyen közös ősük. Igaz-e a következő: és a megfelelő bejárásoknak először fel kell érniük ide, frissíteni a közös parent állapotát az update során, mielőtt lemennek a másik értesítendő child felé?
 
 * Drag-n-Drop: ez azért érdekes mert itt nem csak két dolog kölcsönhatásáról van szó, hanem min 3 (a külső input [egér], az a widget, amin kezdőtött a művelet, és amin éppen áll az egér). Kérdés, hogy erre ki tudunk-e találni valami általános dolgot, ami általánosítható n ilyen dolog kölcsönhatására? (pl. mi van ha Ctrl+ drag-n-drop-ot akar a felhasználó lekezelni?). Hasonló egyszerűbb esetben a Ctrl+click lekezelése...
