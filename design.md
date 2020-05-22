@@ -5,12 +5,14 @@ Szeretnénk egy GUI rendszert, ami:
 - szeretném, ha egyedileg azonosítani lehetne az egyes GUI elemeket azután is, hogy bele raktuk őket a rendszerbe
 - szeretném, ha ezek tudnának hivatkozni egymásra, és tudnának egymásnak is üzenni
 - jó lenne csökkenteni az információ propagálásában a közvetítő lépéseket
+- többek között ki akarjuk zárni a végtelen ciklikus updateket widgetek között
 
 Az információ áramlás rendezése céljából szétválasztjuk, hogy mikor változhat egy widget belső állapota.
 
 * A widgetek belső állapota külső események (egér, bill event) hatására, vagy másik widgetek hatására változhat meg.
 * Lenne egy dedikált alulról felfelé bejárás, amikor ez a változás megtörténhet.
 * Valószínűleg ugyanekkor a bejárás során a widget visszaadja az eseményre adott megváltozásának információit (pl. megváltozott egy textbox tartalma), ez felfelé propagálódik és a parentek csinálhatnak vele valamit, vagy legkívül az end-user.
+* A widgetek kéne, hogy lássák az összes hozzájuk (alulról?) érkező eseményt, mielőtt elkezdenek reagálni rájuk.
 
 Egy másik bejárásban az alignment kiértékelése történik meg
 * A widget meg tudja magától mondani, hogy mi a preferált mérete, ez az információ felfelé propagálódik 
@@ -21,3 +23,7 @@ Egy másik bejárásban az alignment kiértékelése történik meg
 * Kérdés: Mi van, ha ellentmondanak a kényszerek?
 * Valaki, valahol a kényszerek figyelembevételével végzi el a méretezést és az alignmentet
 
+* Több minden is oda mutat, hogy azok között a widgetek között, akik kölcsön akarnak hatni akár eventek, akár kényszerekkel, kell, hogy legyen közös ősük. Igaz-e a következő: és a megfelelő bejárásoknak először fel kell érniük ide, frissíteni a közös parent állapotát az update során, mielőtt lemennek a másik értesítendő child felé?
+
+Első közelítésben nem érdekesek a következő részletek:
+- Mikor kell valakit újrarajzolni (mindent mindig újrarajzolunk, majd lehet régiókkal optimalizálni később)
