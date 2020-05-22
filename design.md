@@ -25,5 +25,9 @@ Egy másik bejárásban az alignment kiértékelése történik meg
 
 * Több minden is oda mutat, hogy azok között a widgetek között, akik kölcsön akarnak hatni akár eventek, akár kényszerekkel, kell, hogy legyen közös ősük. Igaz-e a következő: és a megfelelő bejárásoknak először fel kell érniük ide, frissíteni a közös parent állapotát az update során, mielőtt lemennek a másik értesítendő child felé?
 
+* Drag-n-Drop: ez azért érdekes mert itt nem csak két dolog kölcsönhatásáról van szó, hanem min 3 (a külső input [egér], az a widget, amin kezdőtött a művelet, és amin éppen áll az egér). Kérdés, hogy erre ki tudunk-e találni valami általános dolgot, ami általánosítható n ilyen dolog kölcsönhatására? (pl. mi van ha Ctrl+ drag-n-drop-ot akar a felhasználó lekezelni?). Hasonló egyszerűbb esetben a Ctrl+click lekezelése...
+
+* Igaz-e az, hogy a parentek geometriailag szigorúan boundolják a childokat? Ha nem, akkor az egérrel kapcsolatos hit-test-re figyelni kell, illetve a geometriai hierarchia és a logikai hierarchia ekkor eltérő lehet. Lehet, hogy ekkor érdemes egy array-ban tárolni a rect-eket és egyben végig hit-testelni (ez cache hatékonyabb is)?
+
 Első közelítésben nem érdekesek a következő részletek:
 - Mikor kell valakit újrarajzolni (mindent mindig újrarajzolunk, majd lehet régiókkal optimalizálni később)
